@@ -1,0 +1,134 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  </head>
+  <body>
+    <div id="canvas">It's water!<br /></div>
+    <script>
+      (function () {
+        // Creates a new canvas element and appends it as a child
+        // to the parent element, and returns the reference to
+        // the newly created canvas element
+
+        function createCanvas(parent, width, height) {
+          var canvas = {};
+          canvas.node = document.createElement("canvas");
+          canvas.context = canvas.node.getContext("2d");
+          canvas.node.width = width || 100;
+          canvas.node.height = height || 100;
+          parent.appendChild(canvas.node);
+          return canvas;
+        }
+
+        function init(container, width, height, fillColor) {
+          var canvas = createCanvas(container, width, height);
+          var ctx = canvas.context;
+          // define a custom fillCircle method
+          ctx.clearTo = function (fillColor) {
+            ctx.fillStyle = fillColor;
+            ctx.fillRect(0, 0, width, height);
+          };
+          ctx.clearTo(fillColor || "#ddd");
+
+          // let's set up some temperatures, little "pockets" in a 2d grid,
+          // as if we are viewing a slice of the lake in profile view.
+          // (imagine that we are in an aquarium, tracing squares on the glass...)
+          let temperatures = [
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 40, 40, 40, 40],
+            [40, 40, 40, 40, 40, 40, 38, 39, 40, 40],
+            [40, 40, 40, 40, 40, 40, 37, 40, 39, 39],
+            [40, 40, 41, 44, 47, 36, 36, 40, 39, 39],
+          ];
+
+          let currentMin;
+          let currentMax;
+          let currentTempRange;
+
+          // do some maths!
+          function step() {
+            let nextTemperatures = _.cloneDeep(temperatures);
+
+            // let's pause at each position in our grid and figure out the new temperature at that spot
+            for (let x = 0; x < temperatures.length; x++) {
+              for (let y = 0; y < temperatures[x].length; y++) {
+                nextTemperatures[x][y] = calculateNewTemperature(x, y);
+              }
+            }
+
+            // after calculating, let's use the new values
+            temperatures = nextTemperatures;
+
+            // final pass to get the min/max for color gradient
+            currentMax = -1000;
+            currentMin = 1000;
+            for (let x = 0; x < temperatures.length; x++) {
+              for (let y = 0; y < temperatures[x].length; y++) {
+                let t = temperatures[x][y];
+                if (currentMax < t) {
+                  currentMax = t;
+                }
+                if (currentMin > t) {
+                  currentMin = t;
+                }
+              }
+            }
+            currentTempRange = currentMax - currentMin;
+          }
+
+          function calculateNewTemperature(x, y){
+            // here is where we would do the actual "physics" simulation
+            // for now, let's do something stupid but fun.
+            // let's just say cold water always sinks down unless there's something colder below it (or it's already at the bottom)
+            if (y < temperatures.length - 1 && temperatures[x][y] < temperatures[x][y+1]){
+              // my downstairs neighbor is warmer, i'll take their place
+              return temperatures[x][y+1];
+            } else if (y > 0 && temperatures[x][y] > temperatures[x][y-1]) {
+              return temperatures[x][y-1];
+            }
+          }
+
+          function getColor(x, y) {
+            // let's do a black-white gradient from min to max
+            // kind of boring but it's easy to code
+            let t = temperatures[x][y];
+            let percent = (t - currentMin) / currentTempRange;
+            let color = Math.floor(255 * percent).toString(16); // 00-ff
+            if (color.length == 1) {
+              color = `0${color}`;
+            }
+            return `#${color}${color}ff`;
+          }
+
+          // animate
+          function redraw() {
+            canvas.isDrawing = true;
+            ctx.clearTo("#000000");
+            for (let y = 0; y < 10; y++) {
+              for (let x = 0; x < 10; x++) {
+                let color = getColor(x, y);
+                ctx.fillStyle = color;
+                ctx.fillRect(y * 50, x * 50, 50, 50);
+              }
+            }
+            canvas.isDrawing = false;
+          }
+
+          // here's our main loop
+          setInterval(() => {
+            step();
+            redraw();
+          }, 1000);
+        }
+
+        var container = document.getElementById("canvas");
+        init(container, 500, 500, "#ddd");
+      })();
+    </script>
+  </body>
+</html>
